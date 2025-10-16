@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>توليد مفتاح - KHIRO</title>
+<style>
+body{font-family:Tahoma,Arial;background:#f4f9ff;color:#111;text-align:center;padding:30px}
+.container{display:inline-block;background:#fff;padding:22px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+input, textarea {width:360px;padding:8px;margin:8px 0;border-radius:6px;border:1px solid #ddd;font-size:14px}
+button{padding:10px 18px;border-radius:6px;border:none;background:#0b78d1;color:#fff;cursor:pointer}
+.result{margin-top:12px;background:#eef6ff;padding:10px;border-radius:8px;word-break:break-all;direction:ltr}
+.small{width:360px;height:80px}
+</style>
+</head>
+<body>
+<h2>🔐 توليد مفتاح KHIRO</h2>
+<div class="container">
+  <input id="email" type="email" placeholder="أدخل البريد الإلكتروني" /><br>
+  <button onclick="doGenerate()">توليد المفتاح</button>
+
+  <div class="result" id="resultArea" style="display:none">
+    <div style="margin-top:8px"><strong>مفتاح التفعيل:</strong></div>
+    <textarea id="license" class="small" readonly></textarea>
+    <div style="margin-top:8px;color:#066">انسخ المفتاح والصقه في التطبيق لتفعيله.</div>
+  </div>
+</div>
+
+<script>
+function detectWindowsSimple(ua) {
+    // نحاول استخراج Windows NT X.Y ثم تحويله إلى "Windows 10" أو "Windows 11" إن أمكن
+    try {
+        const m = ua.match(/Windows NT (\d+\.\d+)/i);
+        if (m && m[1]) {
+            const ver = m[1]; // مثال "10.0"
+            // تحويل مبسّط:
+            if (ver.startsWith("10.")) return "Windows 10";
+            if (ver.startsWith("6.3") || ver.startsWith("6.2")) return "Windows 8";
+            if (ver.startsWith("6.1")) return "Windows 7";
+            if (ver.startsWith("11.") || ver.startsWith("10.0") && /rv:/.test(ua) && /Edg\/|Chrome\/1/.test(ua)) {
+                // بعض التمييزات، لكن عمليا نفترض Windows 10 أو 11
+                return "Windows 11";
+            }
+            return "Windows NT " + ver;
+        }
+    } catch(e){}
+    // fallback بسيط
+    if (navigator.platform && navigator.platform.indexOf("Win") !== -1) {
+        return "Windows";
+    }
+    return "Unknown";
+}
+
+async function doGenerate() {
+    const email = document.getElementById('email').value.trim();
+    if (!email) { alert("الرجاء إدخال البريد الإلكتروني"); return; }
+
+    // screen size
+    const screenSize = (screen.width && screen.height) ? (screen.width + "x" + screen.height) : "unknown";
+
+    // windows simple
+    const win = detectWindowsSimple(navigator.userAgent || navigator.platform || "");
+
+    // fingerprint = screen|windows
+    const fingerprint = screenSize + "|" + win;
+
+    // raw = email|fingerprint
+    const raw = email + "|" + fingerprint;
+    const enc = new TextEncoder().encode(raw);
+    const hashBuf = await crypto.subtle.digest("SHA-256", enc);
+    const hashArray = Array.from(new Uint8Array(hashBuf));
+    const hex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+
+    // نفس تنسيق KHIRO-XXXX-XXXX-XXXX-XXXX (نأخذ أول 16 hex)
+    const key = "KHIRO-" + hex.slice(0,4) + "-" + hex.slice(4,8) + "-" + hex.slice(8,12) + "-" + hex.slice(12,16);
+    document.getElementById('license').value = key;
+    document.getElementById('resultArea').style.display = "block";
+    try { await navigator.clipboard.writeText(key); } catch(e) {}
+}
+</script>
+</body>
+</html>
